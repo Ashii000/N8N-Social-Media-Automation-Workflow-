@@ -188,5 +188,5 @@ The workflow expects one Google Sheet ("Social media posts") with the following 
 
 ## Author
 
-**Ashiq Hussain** — AI Developer & Automation Engineer (n8n, Python, LLM workflows)
-[GitHub](https://github.com/Ashii000) · [LinkedIn](https://linkedin.com/in/ashiq-mari-5abb33277)
+**Aushique Hussain** — AI Developer & Automation Engineer (n8n, Python, LLM workflows)
+[LinkedIn](https://linkedin.com/in/ashiq-mari-5abb33277)
