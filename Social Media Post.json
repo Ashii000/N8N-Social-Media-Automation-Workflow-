@@ -1,0 +1,1537 @@
+{
+  "name": "Social Media Post",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1ShnHj6jUD4P_9VlHZEsR0kkb1ly7kHwAVzdUzLtLtgE",
+          "mode": "list",
+          "cachedResultName": "Social media posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Article",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e4ead8be-b3a7-4828-9835-16141c3327ed",
+      "name": "Google Sheets Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cde27f6a-1112-40b3-8f96-9e6b547318b8",
+              "name": "query",
+              "value": "=Summarise and analyse sentiment for this article: {{ $json['News Link'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        384,
+        0
+      ],
+      "id": "3d4f8f15-3cda-4d75-af61-9c8de7e01ac6",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "keep": "lastItems"
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        192,
+        0
+      ],
+      "id": "8a5c9aa9-d2a5-43fe-bb2d-132aae8c2359",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "search_depth",
+              "value": "advanced"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        256
+      ],
+      "id": "8b58e32d-d5cf-49c8-bb4d-2b0c357da08d",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        128
+      ],
+      "id": "02230f95-4b72-4d15-b771-2171424d085b",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.results[0].content }}",
+        "options": {
+          "systemMessage": "#Role\nYou are an AI content analyzer and summarizer.\n\n#Task\nRead and comprehend the provided article text, then generate a concise and informative summary limited to 60 words.\n\n#Instructions:\n\n- Identify the core message of the article.\n- Extract and highlight key facts, statistics, or examples that support the main points.\n- Include significant conclusions or recommendations, if any.\n- Avoid fluff, filler, and introductory phrases like “This article is about.”\n- Ensure the summary is understandable even without reading the full article.\n- Maintain clarity, coherence, and stick to the 35-word limit.\n- Use precise and concise language to express the main ideas effectively.\n\n#Rules:\n\n- Do not exceed 60 words.\n- Do not repeat the title of the article.\n- Focus on main ideas, supporting evidence, and takeaways.\n- Summary must be informative, helpful, and direct.\n- Use active language; prioritize information by relevance.\n- Ensure the final output is ready for integration into a content summarization automation.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        256
+      ],
+      "id": "f6a0792f-6ec0-4a07-bc47-ab4ddd9e052c",
+      "name": "Summary Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.output }}",
+        "options": {
+          "systemMessage": "You are an AI prompt engineer specialising in creating prompts that will be used to create images for an AI and Automation company social media account.\n\n1. You will receive text data about a topic or post. Analyse this text to identify key elements such as the subject, action, setting, and additional details.\n\n2. Use the information extracted from the text to fill in the following AI image generation prompt template:\n\n[subject], [action], [setting], [additional details].\nThe image must be natural, realistic, in 2018, style raw, 8K, taken on iPhone, --ar 16:9\n\n[subject] should be the main focus of the image, like a person, object, creature, or concept. Be as specific as possible.\n\n[action] should describe what the subject is doing using active, descriptive verbs.\n\n[setting] should paint a vivid picture of the location, background, or environment surrounding the subject.\n\n[additional details] can include extra elements to enhance the image, such as clothing, colours, lighting, composition, or artistic references.\n\n3. Always end the generated prompt with the exact phrase:\n\"The image must be natural, realistic, in 2018, style raw, 8K, taken on iPhone, --ar 16:9\"\n\n4. Ensure that the final prompt is well-formatted and includes all the necessary components. Avoid incomplete or poorly structured prompts.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        256
+      ],
+      "id": "7480e3a3-517e-43e8-a75d-5ec374b6f1fc",
+      "name": "Create Image Prompt"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        960,
+        128
+      ],
+      "id": "99782d9d-cf33-4032-a824-a50c564cb7f0",
+      "name": "OpenAI Chat Model1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n\"model\": \"google/nano-banana\",\n\"callBackUrl\": $execution.resumeUrl,\n\"input\": {\n\"prompt\": $json.output,\n\"output_format\": \"png\"\n}\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -16,
+        512
+      ],
+      "id": "bb18350e-a6d5-4ae0-a317-870ec43193e7",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        512
+      ],
+      "id": "b7adb244-763c-4773-9821-27d79278d009",
+      "name": "Wait",
+      "webhookId": "8d7a4c6f-017a-4c86-b2a5-440356980f2a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst url = items.map(\n  (item) => JSON.parse(item.json.body.data.resultJson).resultUrls[0],\n);\nreturn { url: url[0] };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        512
+      ],
+      "id": "0f86e3bc-32f4-4a42-93d6-19cb1c891cec",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Article: {{ $('HTTP Request').item.json.results[0].content }}\nSummary: {{ $('Summary Agent').item.json.output }}",
+        "options": {
+          "systemMessage": "#Role\nYou are an Instagram Caption Specialist with over 10 years of experience writing concise, high-performing post copy for leading brands. You must strictly follow the brand’s tone of voice guidelines in every response.\n\n#Task\nGenerate a short, optimised Instagram caption to accompany a provided image or text. Your caption must grab attention, drive engagement, follow Instagram best practices, and reflect the brand voice.\n\n#Instructions\n\n1. If text is provided:\n\n- Identify key points, themes or messages.\n- Find compelling hooks or story angles for a punchy, relevant one-liner.\n\n2. Write a short caption using this formula:\n\n- Hook: First sentence should grab attention using curiosity, emotion, or boldness.\n- Context/Insight: One more sentence max that gives value, perspective, or relevance.\n- CTA (optional): Ask a thoughtful question that encourages likes, comments, saves or clicks.\n\n3. Formatting & Style Rules:\n\n- Caption must be 1–2 sentences only\n- Use 1–2 emojis maximum (only at the end of a sentence, never together)\n- Include 2–3 hashtags (placed at the end, visible in preview)\n- Integrate 1–2 relevant keywords naturally\n- use clear, concise, everyday language. No jargon or slang.\n- Maintain a positive, inclusive, explanatory tone\n- Always use active voice\n- Proofread for grammar, spelling, clarity, and tone\n- Output must be in plain text only — no formatting symbols like *, #, or markdown\n- Do not include any extra commentary, explanation, or title\n\n#Rules\n\n- Do not exceed two full sentences\n- Do not use back-to-back emojis\n- Do not use hashtags in the sentence body — place them at the end only\n- Avoid idioms, clichés, or colloquialisms that may not translate globally\n- Do not write in a cringeworthy or overly casual tone\n- Caption must be standalone and ready to publish — no placeholder text, formatting notes, or instructions\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -32,
+        752
+      ],
+      "id": "ba17c5f6-23b6-4bcb-8ba2-7c9a5d9a6bee",
+      "name": "Instagram Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        688
+      ],
+      "id": "146b2f4d-6036-4bcc-8474-e11ed3377636",
+      "name": "OpenAI Chat Model2"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "subject": "Approval",
+        "message": "={{ $json.output }}\n{{ $('Code').item.json.url }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        752
+      ],
+      "id": "d612a334-6663-4c62-b870-da7e09d92cc0",
+      "name": "Send a message",
+      "webhookId": "ffae9db5-242c-4ef2-b5e8-0f7ef82de6eb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fea7db4a-1130-46fc-8e53-ceb16eab192e",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        752
+      ],
+      "id": "7819db6d-9f97-4770-bef0-ae71590a9374",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ShnHj6jUD4P_9VlHZEsR0kkb1ly7kHwAVzdUzLtLtgE",
+          "mode": "list",
+          "cachedResultName": "Social media posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1969563257,
+          "mode": "list",
+          "cachedResultName": "Instagram posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Posts": "={{ $('Instagram Agent').item.json.output }}",
+            "Image": "={{ $('Code').item.json.url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Posts",
+              "displayName": "Posts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Image",
+              "displayName": "Image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        768,
+        736
+      ],
+      "id": "7282b120-e268-4aa7-8db2-33a522f0d620",
+      "name": "Append row in sheet"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        928
+      ],
+      "id": "486aa068-9775-40f1-aee5-1025a067a810",
+      "name": "OpenAI Chat Model3"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "subject": "Approval",
+        "message": "={{ $json.output }}\n{{ $('Code').item.json.url }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        960
+      ],
+      "id": "3147b758-bbae-4d0f-bc0a-c5beeca7fb69",
+      "name": "Send a message1",
+      "webhookId": "ffae9db5-242c-4ef2-b5e8-0f7ef82de6eb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fea7db4a-1130-46fc-8e53-ceb16eab192e",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        960
+      ],
+      "id": "02e7e7b6-6e63-4dad-be40-4c39b6521f03",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ShnHj6jUD4P_9VlHZEsR0kkb1ly7kHwAVzdUzLtLtgE",
+          "mode": "list",
+          "cachedResultName": "Social media posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 530050522,
+          "mode": "list",
+          "cachedResultName": "Facebook posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Posts": "={{ $('Facebook Agent').item.json.output }}",
+            "Image": "={{ $('Code').item.json.url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Posts",
+              "displayName": "Posts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Image",
+              "displayName": "Image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        768,
+        944
+      ],
+      "id": "f5c07428-38fb-4df9-8f1a-4b10e91428bd",
+      "name": "Append row in sheet1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Article: {{ $('HTTP Request').item.json.results[0].content }}\nSummary: {{ $('Summary Agent').item.json.output }}",
+        "options": {
+          "systemMessage": "=\n#Role\nYou are a Social Media Content Specialist with over 10 years of experience writing high-engagement copy for Facebook. You must strictly adhere to the tone of voice guidelines provided.\n\n#Task\nGenerate an optimized Facebook post caption to accompany a given image or text input. The caption must drive engagement, align with brand voice, and be formatted for Facebook best practices.\n\n#Instructions\n\n1. If text is provided, identify:\n\n- Key points, themes, or messages\n- Compelling hooks or story angles\n\n2. Write the caption using this structure:\n\n- Hook (within first 125 characters using curiosity, emotion, or boldness)\n- Context (what is this about and why does it matter?)\n- Details/Story (flesh out the message or visual inspiration)\n- Lesson/Insight (offer value or learning for the audience)\n- CTA (engaging question to drive comments, clicks, or shares)\n\nFollow these formatting and content rules:\n\n- Use keywords naturally (3–5 minimum)\n- Add 5–15 hashtags (mix of branded, niche, community, popular)\n- Format: line breaks every 8–11 words, short paragraphs (<21 words)\n- Use one emoji per paragraph maximum, only at the end of sentences\n- Never place two emojis side by side\n- Use plain, inclusive, explanatory language\n- Avoid cringe or slang that doesn’t translate globally\n- Proofread for tone, spelling, grammar, and accuracy\n- Do not title or mention “Facebook” in the output\n\n#Rules\n\n- Do not explain or justify the output\n- Do not include formatting elements like asterisks or markdown\n- Do not skip the paragraph structure or hashtag placement\n- Always apply the brand tone: clear, inclusive, explanatory, positive, concise\n- Keep focus on the reader: value, insight, purpose first\n- Final output must be ready-to-publish Facebook caption in plain text\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -32,
+        960
+      ],
+      "id": "b6f3eb5a-7600-4156-950a-99a3a20e185e",
+      "name": "Facebook Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        1152
+      ],
+      "id": "ee63cfeb-524c-4ce6-984e-15bd3c134671",
+      "name": "OpenAI Chat Model4"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "subject": "Approval",
+        "message": "={{ $json.output }}\n{{ $('Code').item.json.url }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        1200
+      ],
+      "id": "267e15fb-ad88-46c3-96c9-7a8952d3a5ca",
+      "name": "Send a message2",
+      "webhookId": "ffae9db5-242c-4ef2-b5e8-0f7ef82de6eb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fea7db4a-1130-46fc-8e53-ceb16eab192e",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        1200
+      ],
+      "id": "d079a3cd-1782-43f0-ae26-5e4eb99cbf13",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ShnHj6jUD4P_9VlHZEsR0kkb1ly7kHwAVzdUzLtLtgE",
+          "mode": "list",
+          "cachedResultName": "Social media posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1931982430,
+          "mode": "list",
+          "cachedResultName": "Linkedin Posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Posts": "={{ $('LinkedIn Agent').item.json.output }}",
+            "Image": "={{ $('Code').item.json.url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Posts",
+              "displayName": "Posts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Image",
+              "displayName": "Image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        768,
+        1184
+      ],
+      "id": "cd1f38bd-a1a3-4e8f-bfd4-99c14353e369",
+      "name": "Append row in sheet2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Article: {{ $('HTTP Request').item.json.results[0].content }}\nSummary: {{ $('Summary Agent').item.json.output }}",
+        "options": {
+          "systemMessage": "=#Role\nAct as an AI, Automation, and Marketing Thought Leader on LinkedIn, with deep insight into tech trends, industry strategy, and audience engagement.\n\n#Task\nTransform a summary of an article into a high-performing LinkedIn post that follows LinkedIn best practices and drives conversation, insight, and reach.\n\n#Instructions\nWhen provided with a summary or core idea of an article, follow these steps to craft a compelling LinkedIn post:\n\n1. Context or Main Idea\n\n- Start with a concise summary of the article.\n- Clearly communicate the main argument or insight.\n\n2. Relatable Anecdotes or Human Connection\n\n- Where relevant, weave in a personal reflection or general real-life scenario that makes the post more engaging and human.\n- Keep the tone authentic and accessible.\n\n3. Engaging Elements\nInclude one or more of the following to boost interaction:\n\n- A provocative or thoughtful question directed to your network\n- A compelling data point or stat that reinforces the article's message\n- A short call to action encouraging reflection, comment, or sharing\n- A single emoji or symbol used sparingly for emphasis or tone (optional but strategic)\n\n4. Hashtags and Keywords\n\n- Include a curated set of 5–10 hashtags, combining branded, niche, and high-visibility terms.\n- Ensure the post includes keywords relevant to AI, automation, marketing, or the specific article topic to maximise discoverability.\n\n5. Tone and Style Guidelines\n\n- Keep the tone professional, insightful, and conversational.\n- Avoid technical jargon unless it’s clearly explained in simple terms.\n- Do not include links or URLs at the end. The post should stand alone.\n- Keep sentences varied in length but clear and concise.\n- Avoid clichés, idioms, or buzzwords that don’t translate universally.\n\n6. Optional Structure or Elements\n\n- You may format as a list, use comparison styles, or highlight milestones\n- If provided, incorporate references to life events, key wins, or leadership moments\n\n#Rules\n\n- Do not repeat this prompt or reference its components in the final post\n- Do not include the article’s original URL\n- Post must be self-contained and able to perform on LinkedIn independently\n- Always write in plain text with line breaks between paragraphs\n- Emoji use is optional but limited to one per paragraph maximum\n- Prioritise clarity, credibility, and engagement above all\n- make the post 1000-1500 characters\n\n\n✅ Example 1 (Generative AI & Marketing Roles)\n\nAI isn’t here to take your marketing job. But it’s redefining what makes marketers valuable.\n\nBefore: success = execution speed.\nNow: success = strategy, insight, storytelling.\n\nTools like ChatGPT can generate content fast—but they can’t understand nuance, trends, or human emotion. That’s still your edge.\n\nAI will reduce task time. Your job? Turn that into thinking time.\n\nThe shift is already happening:\n\n- Less time on execution\n- More time on analysis and creative decisions\n- A new premium on critical thinking\n\nMarketers who adapt will lead. Those who don’t may get left behind.\n\nHow are you evolving your marketing skills in the age of AI? 💡\n\n#AIinMarketing #MarketingStrategy #GenerativeAI #DigitalMarketing #FutureOfWork #PromptEngineering #OpenAI #ContentMarketing #MarketingCareers #MarTech\n\n\n✅ Example 2 (Automation & Burnout Prevention)\n\nBurnout is a signal, not a badge of honour.\n\nIn scaling startups, the smartest teams automate early—not just to grow, but to protect their people.\n\nOne startup saved 20 hours a week by automating reports. Another used N8N and Zapier to route support tickets, freeing up team bandwidth.\n\nAutomation isn’t about removing people. It’s about respecting their time.\n\nWhen teams aren’t buried in busywork, they solve bigger problems and build better products.\n\nIf you’re growing fast, ask:\nWhat’s draining your team that automation could handle today? ⚡\n\n#Automation #StartupLife #NoCodeTools #TeamWellbeing #ScaleSmarter #BurnoutPrevention #N8N #Zapier #DigitalOps #WorkflowAutomation #Productivity\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -32,
+        1200
+      ],
+      "id": "e6c0272f-27d0-4f96-a149-33db373ec09e",
+      "name": "LinkedIn Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        1424
+      ],
+      "id": "e0300880-d256-4bb0-bc48-37531c5de1b8",
+      "name": "OpenAI Chat Model5"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "subject": "Approval",
+        "message": "={{ $json.output }}\n{{ $('Code').item.json.url }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        1472
+      ],
+      "id": "daa27394-66cf-4b6f-9746-d7e37758f57f",
+      "name": "Send a message3",
+      "webhookId": "ffae9db5-242c-4ef2-b5e8-0f7ef82de6eb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fea7db4a-1130-46fc-8e53-ceb16eab192e",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        1472
+      ],
+      "id": "121e8e30-98fb-41fc-9f93-5c6d685e1fc6",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ShnHj6jUD4P_9VlHZEsR0kkb1ly7kHwAVzdUzLtLtgE",
+          "mode": "list",
+          "cachedResultName": "Social media posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1780468081,
+          "mode": "list",
+          "cachedResultName": "X/Twitter posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Posts": "={{ $('X/Twitter Agent').item.json.output }}",
+            "Image": "={{ $('Code').item.json.url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Posts",
+              "displayName": "Posts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Image",
+              "displayName": "Image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        768,
+        1456
+      ],
+      "id": "935187d1-1695-4686-836e-2d3293125d8f",
+      "name": "Append row in sheet3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Article: {{ $('HTTP Request').item.json.results[0].content }}\nSummary: {{ $('Summary Agent').item.json.output }}",
+        "options": {
+          "systemMessage": "=\n#Role\nAct as an informed X/Twitter expert in AI, Automation, and Marketing.\n\n#Task\nYou will be provided with a summary of an article. Based on that, create an optimised X/Twitter post using best practices in structure, engagement, and formatting for maximum visibility and impact.\n\n#Instructions\n1. Provide the Context or Main Idea\nStart with a brief summary or key message of the article. This is the core argument or insight.\n\n2. Add Personal or Relatable Anecdotes\nIf applicable, include a short personal story or a generalized, relatable experience that ties into the main idea.\n\n3. Incorporate Engaging Elements\nChoose from the following to boost engagement:\n- Ask a thoughtful question to prompt replies.\n- Use a compelling statistic or surprising fact.\n- Include a direct call to action (e.g., “Have you seen this?”, “Try it.”).\n- Emojis/symbols to highlight key takeaways or inject personality.\n\n4. Specify Hashtags and Keywords\nAdd 3–5 hashtags that are relevant to the theme (e.g., #AI, #Marketing, #Automation, #ContentCreation).\n\n5. Optional Additional Details\nIf needed, request a specific layout (list, step-by-step, comparison, etc.), or tie it to a relevant life event or milestone.\n\n6. Do NOT include\n- Any article URLs or source links.\n- Any of the guidelines or prompt template in the output.\n- Overly promotional language. Keep it relatable and human.\n\n#Rules\n- The final X/Twitter post must:\n- Be between 100–150 characters\n- Summarise and stand on its own, without needing the article link\n- Be punchy, clear, and scroll-stopping\n- Match the tone of modern, high-performing X/Twitter posts\n- Follow proper grammar and punctuation for clarity (unless style requires informality)\n\n🔹 Example 1\n🧠 Article Summary:\nThe article explores how solopreneurs are leveraging AI tools to scale their content production without hiring teams, saving both time and money.\n\n✅ X/Twitter Post (148 characters):\nSolopreneurs are using AI as their secret co-founder 🤖\nScale content 10x without the burnout.\nWork smarter, not bigger.\n#AI #solopreneur #automation\n\n🔹 Example 2\n🧠 Article Summary:\nResearch shows that Gen Z responds best to brand content that is humorous, authentic, and meme-based, rather than overly polished advertising.\n\n✅ X/Twitter Post (136 characters):\nWant Gen Z's attention?\nDitch polished ads.\nThink memes, chaos & vibes.\nAuthenticity > aesthetics.\n#marketing #genz #brandstrategy\n\n🔹 Example 3\n🧠 Article Summary:\nThe author discusses how marketers are automating customer segmentation using tools like N8N to personalise messaging and increase conversions.\n\n✅ X/Twitter Post (144 characters):\nStill segmenting customers manually?\nUse N8N to auto-sort by behavior, not guesswork.\nPersonalisation = 💰\n#automation #marketing #n8n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -32,
+        1472
+      ],
+      "id": "16d3c114-3fe1-4e42-830f-e979f78c8dd4",
+      "name": "X/Twitter Agent"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code').item.json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1056,
+        736
+      ],
+      "id": "a05ebe40-d987-413e-827d-b88d4e294742",
+      "name": "Download Image"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code').item.json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1056,
+        944
+      ],
+      "id": "dce6b798-54ac-4395-a6b5-69acc8c9c6f9",
+      "name": "Download Image1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code').item.json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1056,
+        1184
+      ],
+      "id": "d91f1dc2-b2c9-48f3-8d38-e61df8f3cadb",
+      "name": "Download Image2"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code').item.json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1056,
+        1456
+      ],
+      "id": "5fe1a536-fb6c-49ed-923e-b82fa5671e03",
+      "name": "Download Image3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload_photos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Apikey YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user",
+              "value": "Your Username"
+            },
+            {
+              "name": "platform[]",
+              "value": "instagram"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('Instagram Agent').item.json.output }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "photos[]",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        736
+      ],
+      "id": "da5d510b-b310-4ed0-8509-322a0194a7a4",
+      "name": "Post To Instagram"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload_photos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Apikey YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user",
+              "value": "Your Username"
+            },
+            {
+              "name": "platform[]",
+              "value": "facebook"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('Facebook Agent').item.json.output }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "photos[]",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        944
+      ],
+      "id": "14b04972-d278-456c-9d2c-338f1659cba0",
+      "name": "Post To Facebook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload_photos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Apikey YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user",
+              "value": "Your Username"
+            },
+            {
+              "name": "platform[]",
+              "value": "linkedin"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('LinkedIn Agent').item.json.output }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "photos[]",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        1184
+      ],
+      "id": "68084ce4-1a8b-4320-b5c0-0dc8e977ee47",
+      "name": "Post To LinkedIn"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload_photos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Apikey YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user",
+              "value": "Your Username"
+            },
+            {
+              "name": "platform[]",
+              "value": "x"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('X/Twitter Agent').item.json.output }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "photos[]",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        1456
+      ],
+      "id": "2fea2518-1f61-46f8-b657-c08417e5ccda",
+      "name": "Post To X/Twitter"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Summary Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summary Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary Agent": {
+      "main": [
+        [
+          {
+            "node": "Create Image Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Create Image Prompt",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Image Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Instagram Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LinkedIn Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "X/Twitter Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Instagram Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Instagram Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Facebook Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Facebook Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Download Image1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LinkedIn Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LinkedIn Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Download Image2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "X/Twitter Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message3": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "X/Twitter Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet3": {
+      "main": [
+        [
+          {
+            "node": "Download Image3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X/Twitter Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Post To Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image1": {
+      "main": [
+        [
+          {
+            "node": "Post To Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image2": {
+      "main": [
+        [
+          {
+            "node": "Post To LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image3": {
+      "main": [
+        [
+          {
+            "node": "Post To X/Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ba08b26e-b9ac-4bc4-85e3-d191bc0a6fda",
+  "meta": {
+    "instanceId": "70274e68790d145995b68a76d4d439a9aab412ab51cf25a651deb299555b3be2"
+  },
+  "nodeGroups": [],
+  "id": "YHwMQ3PZKPeVOnUh",
+  "tags": []
+}
